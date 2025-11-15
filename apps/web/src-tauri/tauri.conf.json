@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "bangg-react-router",
+  "version": "0.1.0",
+  "identifier": "xyz.bangg.app",
+
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3001",
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build"
+  },
+
+  "app": {
+    "windows": [
+      {
+        "label": "main-window",
+        "title": "bangg-react-router",
+        "width": 1200,
+        "height": 800,
+        "minHeight": 800,
+        "minWidth": 1000,
+        "resizable": true,
+        "visible": true,
+        "center": true,
+        "decorations": false,
+        "devtools": true,
+        "minimizable": true,
+        "maximizable": true,
+        "closable": true,
+        "url": "/conversation"
+      },
+      {
+        "label": "menu",
+        "title": "Floating Menu",
+        "width": 450,
+        "height": 100,
+        "decorations": true,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "visibleOnAllWorkspaces": true,
+        "skipTaskbar": false,
+        "visible": false,
+        "center": false,
+        "focus": false,
+        "acceptFirstMouse": true,
+        "shadow": false,
+        "url": "/menu"
+      }
+    ],
+
+    "security": {
+      "csp": null
+    }
+  },
+
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": ["models/ggml-base.en.bin", "oauth_config.json"]
+  },
+
+  "plugins": {
+    "oauth": {
+      "permissions": ["default"]
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://updater.bangg.xyz/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCMkMzQjJGRUQ4REE2RjAKUldUd3BvM3RMenNzeTJIWHNFSDdqcWVyT3FmejhVY3l4YTYwekxjT0VYeWdvTEFlT09LUEZrbnQK"
+    }
+  }
+}

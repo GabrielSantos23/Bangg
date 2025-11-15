@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "menu-window-capability",
+  "description": "Capability for the AI overlay window",
+  "windows": ["menu"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-inner-size",
+    "opener:default",
+    "shell:default",
+    "store:default",
+    "core:window:allow-hide",
+    "core:window:default",
+    "core:window:allow-set-content-protected"
+  ]
+}

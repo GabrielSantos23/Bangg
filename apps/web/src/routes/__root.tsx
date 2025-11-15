@@ -1,54 +1,77 @@
-import Header from "@/components/header";
+/// <reference types="vite/client" />
+import TitleBar from "@/components/TitleBar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { UserProvider } from "@/hooks/useUser";
 import {
-	HeadContent,
-	Outlet,
-	createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import "../index.css";
-
+import * as React from "react";
+import indexCss from "../index.css?url";
+import { useVisibility, VisibilityProvider } from "@/contexts/VisibilityContext";
+import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
+import { DashedBorder } from "@/components/DashedBorder";
 export interface RouterAppContext {}
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
-	component: RootComponent,
-	head: () => ({
-		meta: [
-			{
-				title: "bangg-test",
-			},
-			{
-				name: "description",
-				content: "bangg-test is a web application",
-			},
-		],
-		links: [
-			{
-				rel: "icon",
-				href: "/favicon.ico",
-			},
-		],
-	}),
+  head: () => ({
+    links: [{ rel: "stylesheet", href: indexCss }],
+  }),
+  shellComponent: RootShell,
+  component: RootComponent,
 });
 
+function RootShell({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+
 function RootComponent() {
-	return (
-		<>
-			<HeadContent />
-			<ThemeProvider
-				attribute="class"
-				defaultTheme="dark"
-				disableTransitionOnChange
-				storageKey="vite-ui-theme"
-			>
-				<div className="grid grid-rows-[auto_1fr] h-svh">
-					<Header />
-					<Outlet />
-				</div>
-				<Toaster richColors />
-			</ThemeProvider>
-			<TanStackRouterDevtools position="bottom-left" />
-		</>
-	);
+  const { location } = useRouterState();
+  const hideTitleBar = location.pathname.startsWith("/menu");
+
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      disableTransitionOnChange
+      storageKey="vite-ui-theme"
+    >
+      <VisibilityProvider>
+        <AppSettingsProvider>
+          <UserProvider>
+            {hideTitleBar ? (
+              <div className="grid grid-rows-[auto_1fr] h-svh">
+                <Outlet />
+              </div>
+            ) : (
+              <TitleBar>
+
+                <div className="grid grid-rows-[auto_1fr] h-svh">
+                  <Outlet />
+                </div>
+              </TitleBar>
+            )}
+            <Toaster position="top-right" />
+          </UserProvider>
+          {/*<TanStackRouterDevtools position="bottom-left" />*/}
+        </AppSettingsProvider>
+      </VisibilityProvider>
+    </ThemeProvider>
+  );
 }

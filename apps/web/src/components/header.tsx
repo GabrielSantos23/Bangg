@@ -1,9 +1,15 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
+import { Button } from "./ui/button";
+import { logout } from "@/services/auth";
 
 export default function Header() {
 	const links = [{ to: "/", label: "Home" }] as const;
-
+	 const navigate = useNavigate()
+	async function handleLogout() {
+    await logout()
+    navigate({ to: '/Login' })
+  }
 	return (
 		<div>
 			<div className="flex flex-row items-center justify-between px-2 py-1">
@@ -19,6 +25,9 @@ export default function Header() {
 				<div className="flex items-center gap-2">
 					<ModeToggle />
 				</div>
+				<Button variant="destructive" onClick={() => handleLogout()}>
+            Logout
+          </Button>
 			</div>
 			<hr />
 		</div>
