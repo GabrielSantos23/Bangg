@@ -13,9 +13,13 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import * as React from "react";
 import indexCss from "../index.css?url";
-import { useVisibility, VisibilityProvider } from "@/contexts/VisibilityContext";
+import {
+  useVisibility,
+  VisibilityProvider,
+} from "@/contexts/VisibilityContext";
 import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { DashedBorder } from "@/components/DashedBorder";
+
 export interface RouterAppContext {}
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
@@ -35,7 +39,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <Scripts />
-        <Toaster />
       </body>
     </html>
   );
@@ -43,7 +46,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { location } = useRouterState();
-  const hideTitleBar = location.pathname.startsWith("/menu");
+  const hideTitleBar =
+    location.pathname.startsWith("/menu") ||
+    location.pathname.startsWith("/capture-overlay");
 
   return (
     <ThemeProvider
@@ -61,7 +66,6 @@ function RootComponent() {
               </div>
             ) : (
               <TitleBar>
-
                 <div className="grid grid-rows-[auto_1fr] h-svh">
                   <Outlet />
                 </div>

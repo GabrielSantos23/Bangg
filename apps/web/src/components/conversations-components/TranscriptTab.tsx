@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { FilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getTranscriptionSegmentsByConversationId } from "@/services/transcription.server";
-import type { TranscriptionSegment } from "@/services/transcription.server";
+import { getTranscriptionSegmentsByConversation } from "@/services/transcription";
+import type { TranscriptionSegment } from "@/services/transcription";
 
 interface TranscriptTabProps {
   conversationId: string;
@@ -27,9 +27,7 @@ export function TranscriptTab({ conversationId }: TranscriptTabProps) {
     const fetchSegments = async () => {
       try {
         setIsLoading(true);
-        const result = await getTranscriptionSegmentsByConversationId({
-          data: { conversationId },
-        });
+        const result = await getTranscriptionSegmentsByConversation(conversationId);
 
         // Sort segments by startTime (treating null/undefined as 0), then by createdAt
         const sortedSegments = (result || []).sort((a, b) => {
@@ -79,7 +77,7 @@ export function TranscriptTab({ conversationId }: TranscriptTabProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
+      <div className="">
         <p className="text-muted-foreground">Loading transcript...</p>
       </div>
     );
@@ -87,7 +85,7 @@ export function TranscriptTab({ conversationId }: TranscriptTabProps) {
 
   if (segments.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
+      <div className="">
         <p className="text-muted-foreground">
           No transcript available for this conversation.
         </p>
@@ -96,9 +94,9 @@ export function TranscriptTab({ conversationId }: TranscriptTabProps) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="relative">
       {/* Header with copy button */}
-      <div className="flex items-center justify-end p-4 border-b border-border">
+      <div className="flex absolute top-0 right-0 items-center justify-end p-4 ">
         <Button
           variant="ghost"
           size="sm"
@@ -116,8 +114,8 @@ export function TranscriptTab({ conversationId }: TranscriptTabProps) {
           <div key={segment.id}>
             {/* Speaker name and timestamp */}
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-sm font-medium text-blue-500">Speaker</span>
-              <span className="text-sm text-blue-500">
+              <span className="text-sm font-medium text-primary">Speaker</span>
+              <span className="text-xs text-muted-foreground">
                 {formatTime(segment.startTime)}
               </span>
             </div>

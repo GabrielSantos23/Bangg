@@ -30,7 +30,7 @@ export const ProfileDropdown = () => {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={!isLoggedIn} className="bg-transparent! border-none!">
+        <DropdownMenuTrigger asChild disabled={!isLoggedIn} className="bg-transparent! border-none! hover:bg-muted/80! focus:bg-none! cursor-pointer focus:ring-0!">
           <Button variant="outline" size="icon" className="rounded-lg ">
             {user ? (
               <img

@@ -1,7 +1,7 @@
 import { EditableTitle } from "@/components/conversations-components/EditableTitle";
 import { SummaryTab } from "@/components/conversations-components/SummaryTab";
 import { TranscriptTab } from "@/components/conversations-components/TranscriptTab";
-import { UsageTab } from "@/components/conversations-components/UsageTab";
+
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createFileRoute } from "@tanstack/react-router";
@@ -12,13 +12,15 @@ import {
   getConversation,
   updateConversationTitle,
   type ConversationDetails,
-} from "@/services/conversation.server";
+} from "@/services/conversation";
 import { useSummaryEditor } from "@/hooks/useSummaryEditor";
 import {
-  getChatByConversationId,
+  getChatByConversation,
   createChatForConversation,
-} from "@/services/chat.server";
+} from "@/services/chat";
 import { invoke } from "@tauri-apps/api/core";
+import { ChatTab } from "@/components/conversations-components/ChatTab";
+import { ConversationBottomBar } from "@/components/ConversationBottomBar";
 
 export const Route = createFileRoute("/conversation/$id")({
   component: RouteComponent,
@@ -36,33 +38,36 @@ function RouteComponent() {
   const [isCheckingChat, setIsCheckingChat] = useState(true);
 
   // Fetch conversation details and check for existing chat
-  useEffect(() => {
-    const fetchConversation = async () => {
-      if (!id) return;
+  const fetchConversation = async () => {
+    if (!id) return;
 
-      try {
-        setIsLoading(true);
-        setIsCheckingChat(true);
-        const conv = await getConversation({ data: { conversationId: id } });
-        setConversation(conv);
+    try {
+      setIsLoading(true);
+      setIsCheckingChat(true);
+      const conv = await getConversation(id);
+      setConversation(conv);
 
-        // Check if there's an existing chat for this conversation
-        if (conv && user?.id) {
-          const chat = await getChatByConversationId({
-            data: { conversationId: id },
-          });
-          setExistingChat(chat);
-        }
-      } catch (error) {
-        console.error("Failed to fetch conversation:", error);
-      } finally {
-        setIsLoading(false);
-        setIsCheckingChat(false);
+      // Check if there's an existing chat for this conversation
+      if (conv && user?.id) {
+        const chat = await getChatByConversation(id);
+        setExistingChat(chat);
       }
-    };
+    } catch (error) {
+      console.error("Failed to fetch conversation:", error);
+    } finally {
+      setIsLoading(false);
+      setIsCheckingChat(false);
+    }
+  };
 
+  useEffect(() => {
     fetchConversation();
   }, [id, user?.id]);
+
+  // Handler para recarregar a conversa após gerar o summary
+  const handleSummaryGenerated = async () => {
+    await fetchConversation();
+  };
 
   // Use summary editor hook
   const { editor, handleEditorChange, handleImmediateSave } = useSummaryEditor({
@@ -123,11 +128,9 @@ function RouteComponent() {
       // Se não existe chat, criar um novo vinculado à conversa
       if (!chat && user?.id) {
         chat = await createChatForConversation({
-          data: {
-            conversationId: id,
-            userId: user.id,
-            title: conversation?.title || "New Chat",
-          },
+          conversationId: id,
+          userId: user.id,
+          title: conversation?.title || "New Chat",
         });
         setExistingChat(chat);
       }
@@ -154,9 +157,7 @@ function RouteComponent() {
 
   const handleTitleSave = async (newTitle: string) => {
     try {
-      await updateConversationTitle({
-        data: { conversationId: id, title: newTitle },
-      });
+      await updateConversationTitle(id, newTitle);
       // Update local state to reflect the new title
       setConversation((prev: ConversationDetails | null) =>
         prev ? { ...prev, title: newTitle } : null
@@ -207,10 +208,10 @@ function RouteComponent() {
                     Transcript
                   </TabsTrigger>
                   <TabsTrigger
-                    value="usage"
+                    value="chat"
                     className="rounded-2xl px-3 py-1 text-xs m-1 font-medium data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground"
                   >
-                    Usage
+                    Chat
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -223,6 +224,9 @@ function RouteComponent() {
                   <SummaryTab
                     editor={editor}
                     onEditorChange={handleEditorChange}
+                    conversationId={id}
+                    userId={user?.id || ""}
+                    onSummaryGenerated={handleSummaryGenerated}
                   />
                 </TabsContent>
 
@@ -230,46 +234,20 @@ function RouteComponent() {
                   <TranscriptTab conversationId={id} />
                 </TabsContent>
 
-                <TabsContent value="usage" className="mt-0">
-                  <UsageTab conversationId={id} />
+                <TabsContent value="chat" className="mt-0">
+                  <ChatTab conversationId={id} />
                 </TabsContent>
               </div>
             </main>
           </Tabs>
 
           {/* Bottom Bar */}
-          <div className=" fixed bottom-0 left-0 right-0 border-border px-6 py-4">
-            <div className="mx-auto flex max-w-2xl items-center gap-4">
-              <Button
-                variant="outline"
-                className="gap-2 bg-card/70! backdrop-blur-sm rounded-full text-xs text-muted-foreground"
-                onClick={handleResumeOrStartSession}
-                disabled={isCheckingChat}
-              >
-                {existingChat ? (
-                  <>
-                    <Play className=" fill-card-foreground"  />
-                    Resume Session
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="h-3 w-3" />
-                    Start Conversation
-                  </>
-                )}
-              </Button>
-              <div className="flex-1 bg-card/70! backdrop-blur-sm border rounded-full pl-4 pr-1 py-0.5 flex items-center justify-between">
-                <input
-                  type="text"
-                  placeholder="Ask about this meeting..."
-                  className="flex-1  text-sm outline-none placeholder:text-muted-foreground "
-                />
-                <Button size="sm" className="h-8 w-8 rounded-full p-0 bg-accent text-card-foreground">
-                  <ArrowUpRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ConversationBottomBar
+            existingChat={existingChat}
+            isCheckingChat={isCheckingChat}
+            onResumeOrStartSession={handleResumeOrStartSession}
+            conversationId={id}
+          />
         </div>
       </div>
     </div>

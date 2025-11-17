@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deleteConversation } from "@/services/conversation.server";
+import { deleteConversationById } from "@/services/conversation";
 
 interface Meeting {
   id: string | number;
@@ -41,7 +41,11 @@ export function MeetingItem({ meeting, onDelete }: MeetingItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
-  const handleItemClick = () => {
+  const handleItemClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on the dropdown or dialog
+    if ((e.target as HTMLElement).closest('[role="menu"], [role="dialog"]')) {
+      return;
+    }
     navigate({
       to: "/conversation/$id",
       params: { id: String(meeting.id) },
@@ -54,9 +58,7 @@ export function MeetingItem({ meeting, onDelete }: MeetingItemProps) {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await deleteConversation({
-        data: { conversationId: String(meeting.id) },
-      });
+      await deleteConversationById(String(meeting.id));
       // Call the onDelete callback to refresh the list
       if (onDelete) {
         await onDelete();
@@ -150,7 +152,10 @@ export function MeetingItem({ meeting, onDelete }: MeetingItemProps) {
 
       {/* Alert Dialog for Delete Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogContent
+          onClick={(e) => e.stopPropagation()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>

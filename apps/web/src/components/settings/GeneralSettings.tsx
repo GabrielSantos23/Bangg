@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { getVersion } from '@tauri-apps/api/app'
-import { useUpdater } from '@/hooks/useUpdater'
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { useUpdater } from "@/hooks/useUpdater";
 import {
   ArrowUp,
   ChevronDown,
@@ -13,28 +13,28 @@ import {
   Power,
   RefreshCw,
   SunDim,
-} from 'lucide-react'
-import { Switch } from '../ui/switch'
-import { Button } from '../ui/button'
+} from "lucide-react";
+import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Progress } from '../ui/progress'
-import { enable, isEnabled, disable } from '@tauri-apps/plugin-autostart'
-import { useTheme } from 'next-themes'
-import { toast } from 'sonner'
+} from "../ui/dropdown-menu";
+import { Progress } from "../ui/progress";
+import { enable, isEnabled, disable } from "@tauri-apps/plugin-autostart";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
 
 export const GeneralSettings = () => {
-  const [detectable, setDetectable] = useState(true)
-  const [openOnLogin, setOpenOnLogin] = useState(false)
-  const [isLoadingAutostart, setIsLoadingAutostart] = useState(false)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
-  const [appVersion, setAppVersion] = useState<string>('')
-  const { theme, setTheme } = useTheme()
+  const [detectable, setDetectable] = useState(true);
+  const [openOnLogin, setOpenOnLogin] = useState(false);
+  const [isLoadingAutostart, setIsLoadingAutostart] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>("");
+  const { theme, setTheme } = useTheme();
 
   const {
     isChecking,
@@ -45,85 +45,85 @@ export const GeneralSettings = () => {
     checkForUpdates,
     downloadAndInstall,
     cancelUpdate,
-  } = useUpdater()
+  } = useUpdater();
 
   useEffect(() => {
     const fetchVersion = async () => {
       try {
-        const version = await getVersion()
-        setAppVersion(version)
+        const version = await getVersion();
+        setAppVersion(version);
       } catch (error) {
-        console.error('Failed to get app version:', error)
-        setAppVersion('Unknown')
+        console.error("Failed to get app version:", error);
+        setAppVersion("Unknown");
       }
-    }
+    };
 
     const checkAutostart = async () => {
       try {
-        const enabled = await isEnabled()
-        setOpenOnLogin(enabled)
+        const enabled = await isEnabled();
+        setOpenOnLogin(enabled);
       } catch (error) {
-        console.error('Failed to check autostart status:', error)
-        toast.error('Failed to check autostart status')
+        console.error("Failed to check autostart status:", error);
+        toast.error("Failed to check autostart status");
       }
-    }
+    };
 
-    fetchVersion()
-    checkAutostart()
-  }, [])
+    fetchVersion();
+    checkAutostart();
+  }, []);
 
   const handleAutostartToggle = async (checked: boolean) => {
-    setIsLoadingAutostart(true)
+    setIsLoadingAutostart(true);
 
     try {
       if (checked) {
-        await enable()
-        setOpenOnLogin(true)
-        toast.success('Autostart enabled')
+        await enable();
+        setOpenOnLogin(true);
+        toast.success("Autostart enabled");
       } else {
-        await disable()
-        setOpenOnLogin(false)
-        toast.success('Autostart disabled')
+        await disable();
+        setOpenOnLogin(false);
+        toast.success("Autostart disabled");
       }
     } catch (error) {
-      console.error('Failed to toggle autostart:', error)
-      toast.error('Failed to update autostart')
+      console.error("Failed to toggle autostart:", error);
+      toast.error("Failed to update autostart");
 
-      setOpenOnLogin(!checked)
+      setOpenOnLogin(!checked);
     } finally {
-      setIsLoadingAutostart(false)
+      setIsLoadingAutostart(false);
     }
-  }
+  };
 
   const handleCheckUpdate = async () => {
     try {
-      await checkForUpdates()
+      await checkForUpdates();
       if (!updateAvailable) {
-        toast.success("You're up to date!")
+        toast.success("You're up to date!");
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error)
-      toast.error('Failed to check for updates')
+      console.error("Failed to check for updates:", error);
+      toast.error("Failed to check for updates");
     }
-  }
+  };
 
   const handleDownloadUpdate = async () => {
     try {
-      await downloadAndInstall()
-      toast.success('Update installed successfully')
+      await downloadAndInstall();
+      toast.success("Update installed successfully");
     } catch (error) {
-      console.error('Failed to download update:', error)
-      toast.error('Failed to download update')
+      console.error("Failed to download update:", error);
+      toast.error("Failed to download update");
     }
-  }
+  };
 
   const handleCancelUpdate = () => {
-    cancelUpdate()
-    toast.info('Update cancelled')
-  }
+    cancelUpdate();
+    toast.info("Update cancelled");
+  };
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto bg-background border rounded-lg m-1">
+    <div className="flex-1 h-screen overflow-y-auto bg-background border rounded-lg m-1 relative">
       {/* Detectable Section */}
       <div className="p-6">
         <div className="flex items-start justify-between bg-card rounded-lg p-3">
@@ -134,7 +134,7 @@ export const GeneralSettings = () => {
                 Detectable
               </h3>
               <p className="text-sm text-muted-foreground">
-                Cluely is currently detectable by screen-sharing.{' '}
+                Cluely is currently detectable by screen-sharing.{" "}
                 <span className="text-primary cursor-pointer hover:underline">
                   Limitations here
                 </span>
@@ -205,14 +205,14 @@ export const GeneralSettings = () => {
                 variant="outline"
                 className="ml-4 bg-secondary border text-card-foreground hover:bg-secondary/70 flex items-center gap-2"
               >
-                {theme === 'light' ? (
+                {theme === "light" ? (
                   <SunDim className="w-4 h-4" />
-                ) : theme === 'dark' ? (
+                ) : theme === "dark" ? (
                   <Moon className="w-4 h-4" />
                 ) : (
                   <Monitor className="w-4 h-4" />
                 )}
-                <span className="capitalize">{theme || 'System'}</span>
+                <span className="capitalize">{theme || "System"}</span>
                 <ChevronDown className="w-4 h-4 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
@@ -220,19 +220,19 @@ export const GeneralSettings = () => {
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel>Theme</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => setTheme('system')}
+                onClick={() => setTheme("system")}
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Monitor /> System Preference
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setTheme('light')}
+                onClick={() => setTheme("light")}
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <SunDim /> Light
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setTheme('dark')}
+                onClick={() => setTheme("dark")}
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Moon className="fill-card-foreground" /> Dark
@@ -324,7 +324,7 @@ export const GeneralSettings = () => {
               <Progress value={progress.percentage} className="h-2" />
               <p className="text-xs text-muted-foreground">
                 {progress.percentage}% (
-                {(progress.downloaded / 1024 / 1024).toFixed(2)} MB of{' '}
+                {(progress.downloaded / 1024 / 1024).toFixed(2)} MB of{" "}
                 {(progress.total / 1024 / 1024).toFixed(2)} MB)
               </p>
             </div>
@@ -337,43 +337,22 @@ export const GeneralSettings = () => {
                 New version available: v{updateAvailable.version}
               </h5>
               <p className="text-xs text-muted-foreground">
-                {updateAvailable.body || 'No release notes available.'}
+                {updateAvailable.body || "No release notes available."}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Advanced Section */}
-      <div className="px-4">
-        <button
-          onClick={() => setAdvancedOpen(!advancedOpen)}
-          className="w-full flex items-center rounded-lg justify-between p-6 hover:bg-secondary/50 transition-colors"
-        >
-          <div>
-            <h3 className="text-base font-semibold text-card-foreground text-left mb-1">
-              Advanced
-            </h3>
-            <p className="text-sm text-muted-foreground text-left">
-              Configure experimental Cluely features
-            </p>
-          </div>
-          <ChevronDown
-            className={`w-5 h-5 text-muted-foreground transition-transform ${
-              advancedOpen ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-        {advancedOpen && (
-          <div className="px-6 pb-6 text-sm text-muted-foreground">
-            Advanced settings content would go here...
-          </div>
-        )}
-      </div>
-
-      <div className="px-6 text-end justify-end py-3 text-xs text-muted-foreground/50">
-        About v{appVersion || '...'}
+      {/* About version at bottom right */}
+      <div
+        className="absolute bottom-0 right-0 px-6 py-3 text-xs text-muted-foreground/50"
+        style={{
+          borderBottomRightRadius: "0.5rem", // match rounded-lg (8px = 0.5rem)
+        }}
+      >
+        About v{appVersion || "..."}
       </div>
     </div>
-  )
-}
+  );
+};

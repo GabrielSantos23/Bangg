@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc;
-use tauri::Window;
 use tauri::Manager;
 use url::Url;
 

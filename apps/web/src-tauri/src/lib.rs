@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
-use tauri::{Emitter, WebviewUrl, WebviewWindowBuilder, Window};
+use tauri::{Emitter, Window};
 use tauri_plugin_oauth::OauthConfig;
 use tauri_plugin_opener;
 use tauri_plugin_posthog::{init as posthog_init, PostHogConfig, PostHogOptions};
@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 // === Modules ===
 mod audio_utils;
 mod capture;
+mod database;
 mod login;
 mod realtime_transcription; // <-- your real-time whisper logic
 mod shortcuts;
@@ -144,6 +145,24 @@ pub fn run() {
             is_hidden: Mutex::new(false),
         })
         .manage(shortcuts::RegisteredShortcuts::default())
+        .setup(|app| {
+    // Initialize database pool synchronously in setup
+    let app_handle = app.handle().clone();
+    
+    // CHANGED: Use Tauri's internal async runtime helper instead of creating a new Runtime
+    // This prevents conflicts with the main event loop
+    let pool = tauri::async_runtime::block_on(async {
+        database::create_pool(Some(&app_handle)).await
+    })
+    .expect("❌ CRITICAL: Failed to connect to database. Check your .env and database URL.");
+
+    // If we get here, the pool is valid
+    log::info!("✓ Database pool created successfully");
+    app.manage(database::DbState { pool });
+    log::info!("✓ DbState managed successfully");
+    
+    Ok(())
+})
         // === Commands ===
         .invoke_handler(tauri::generate_handler![
             // Auth & capture
@@ -176,6 +195,44 @@ pub fn run() {
             audio_utils::save_audio_buffer,
             audio_utils::cleanup_audio_file,
             audio_utils::list_audio_files,
+            database::db_get_conversations,
+            database::db_get_conversation_by_id,
+            database::db_create_conversation,
+            database::db_update_conversation,
+            database::db_delete_conversation,
+            
+            // Conversation message commands
+            database::db_get_conversation_messages,
+            database::db_create_conversation_message,
+            
+            // Chat commands
+            database::db_get_chats,
+            database::db_get_chat_by_id,
+            database::db_create_chat,
+            database::db_update_chat,
+            database::db_delete_chat,
+            database::db_get_chat_by_conversation_id,
+            
+            // Message commands
+            database::db_get_messages,
+            database::db_create_message,
+            database::db_delete_message,
+            
+            // Summary commands
+            database::db_get_summary_by_conversation_id,
+            database::db_create_summary,
+            database::db_update_summary,
+            
+            // Transcription commands
+            database::db_get_transcriptions,
+            database::db_get_transcription_by_id,
+            database::db_create_transcription,
+            database::db_get_transcription_segments,
+            database::db_create_transcription_segment,
+            database::db_get_transcription_segments_by_conversation_id,
+            
+            // Test command
+            database::db_test_connection,
         ])
         // === Run ===
         .run(tauri::generate_context!())

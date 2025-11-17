@@ -5,8 +5,8 @@ import { platePlugins } from "@/config/plate/plugins";
 import { initialPlateValue } from "@/config/plate/initialValue";
 import {
   getOrCreateSummary,
-  updateSummary,
-} from "@/services/conversation.server";
+  updateSummaryContent,
+} from "@/services/conversation";
 import { processMediaToBase64 } from "@/utils/media-utils";
 
 interface UseSummaryEditorOptions {
@@ -49,38 +49,59 @@ export function useSummaryEditor({
     currentSummaryIdRef.current = summaryId;
   }, [summaryId]);
 
-  // Initialize summary content
+  // Track previous summaryContent to detect changes
+  const prevSummaryContentRef = useRef<string | undefined>(undefined);
+
+  // Initialize summary content and update when summaryContent changes
   useEffect(() => {
     const initializeSummary = async () => {
-      // If summary content exists, parse it
+      // If summary content exists, parse it and update editor
       if (summaryContent) {
         try {
           const parsed = JSON.parse(summaryContent);
-          setEditorValue(parsed);
-          lastSavedContentRef.current = summaryContent;
-        } catch {
+          // Always update if summaryContent changed from previous value
+          // This ensures we sync with the database even if we just saved
+          if (prevSummaryContentRef.current !== summaryContent) {
+            setEditorValue(parsed);
+            lastSavedContentRef.current = summaryContent;
+            prevSummaryContentRef.current = summaryContent;
+          }
+        } catch (error) {
+          console.error("Failed to parse summary content:", error);
           // If parsing fails, use initial value
-          setEditorValue(initialPlateValue);
-          lastSavedContentRef.current = JSON.stringify(initialPlateValue);
+          if (!editorValue) {
+            setEditorValue(initialPlateValue);
+            lastSavedContentRef.current = JSON.stringify(initialPlateValue);
+            prevSummaryContentRef.current = summaryContent;
+          }
         }
       } else if (userId && conversationId) {
         // Get or create summary if it doesn't exist
         try {
-          const summary = await getOrCreateSummary({
-            data: { conversationId, userId },
-          });
+          const summary = await getOrCreateSummary(conversationId, userId);
           currentSummaryIdRef.current = summary?.id;
-          setEditorValue(initialPlateValue);
-          lastSavedContentRef.current = JSON.stringify(initialPlateValue);
+          // Only set initial value if we don't have editor value yet
+          if (!editorValue) {
+            setEditorValue(initialPlateValue);
+            lastSavedContentRef.current = JSON.stringify(initialPlateValue);
+            prevSummaryContentRef.current = summaryContent;
+          }
         } catch (error) {
           console.error("Failed to initialize summary:", error);
-          setEditorValue(initialPlateValue);
+          if (!editorValue) {
+            setEditorValue(initialPlateValue);
+          }
         }
+      } else if (!summaryContent && !editorValue) {
+        // If no content and no editor value, initialize with empty
+        setEditorValue(initialPlateValue);
+        lastSavedContentRef.current = JSON.stringify(initialPlateValue);
+        prevSummaryContentRef.current = summaryContent;
       }
     };
 
     initializeSummary();
-  }, [conversationId, userId, summaryContent]);
+  }, [conversationId, userId, summaryContent, summaryId]);
 
   // Create editor instance
   const editor = usePlateEditor({
@@ -127,12 +148,11 @@ export function useSummaryEditor({
           : value;
         const processedContentString = JSON.stringify(processedValue);
         
-        await updateSummary({
-          data: {
-            summaryId,
-            content: processedContentString,
-          },
-        });
+        await updateSummaryContent(
+          summaryId,
+          processedContentString,
+          undefined
+        );
         lastSavedContentRef.current = processedContentString;
 
         // Process pending save if exists

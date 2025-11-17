@@ -1,13 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { load } from '@tauri-apps/plugin-store'
-import {
-  saveUser,
-  createSession,
-  getActiveSession,
-  getUserBySession,
-  deleteSession,
-  deleteUserSessions,
-} from './auth.server'
+import { saveUser, createSession } from './auth.server'
 
 export interface User {
   id: string
@@ -23,6 +16,10 @@ let currentSessionId: string | null = null
 let store: Awaited<ReturnType<typeof load>> | null = null
 
 async function getStore() {
+  // Don't use Tauri APIs on server-side (SSR)
+  if (typeof window === "undefined") {
+    throw new Error("getStore() cannot be called on server-side. Use auth.server.ts instead.");
+  }
   if (!store) {
     store = await load('user-store.json', {
       defaults: {},
@@ -52,22 +49,28 @@ export async function login(provider: 'google' | 'github'): Promise<User> {
       accessToken: userInfo.access_token,
     }
 
-    // Save user to Neon database
+    // Save user to database
     try {
-      await saveUser({ data: currentUser })
-      console.log('User saved to database')
+      await saveUser({
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        avatar: currentUser.avatar,
+        provider: currentUser.provider,
+        accessToken: currentUser.accessToken,
+      })
 
       // Create session in database
-      const sessionResult = await createSession({
-        data: { userId: currentUser.id },
+      const session = await createSession({
+        userId: currentUser.id,
       })
-      if (sessionResult?.id) {
-        currentSessionId = sessionResult.id
-        console.log('Session created:', currentSessionId)
+
+      if (session) {
+        currentSessionId = session.id
       }
-    } catch (dbError) {
-      console.warn('Failed to save user/session to database:', dbError)
-      // Continue with local storage even if database fails
+    } catch (error) {
+      console.error('Failed to save user to database:', error)
+      // Continue with login even if database save fails
     }
 
     // Store user and session in Tauri Store for offline access
@@ -87,62 +90,32 @@ export async function login(provider: 'google' | 'github'): Promise<User> {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
+  // Don't use Tauri APIs on server-side (SSR)
+  if (typeof window === "undefined") {
+    // On server-side, return null or try to get from request context
+    // For now, return null - the API route should handle authentication differently
+    return null;
+  }
+
   // First, try to get user from database session if available
   if (!currentUser) {
     try {
       const store = await getStore()
       const storedSessionId = (await store.get<string>('sessionId')) || null
 
-      if (storedSessionId) {
-        // Try to get user from database session
-        try {
-          const dbUser = await getUserBySession({
-            data: { sessionId: storedSessionId },
-          })
-          if (dbUser) {
-            currentUser = dbUser
-            currentSessionId = storedSessionId
-            // Update local store with fresh data
-            await store.set('user', currentUser)
-            await store.save()
-            console.log('User loaded from database session')
-            return currentUser
-          } else {
-            // Session expired or invalid, clear it
-            await store.delete('sessionId')
-            await store.save()
-          }
-        } catch (dbError) {
-          console.warn('Failed to get user from database session:', dbError)
-          // Fall through to local storage
-        }
-      }
+      // In Tauri-only mode, we only use local storage
+      // Session validation is done via Tauri Store
 
       // Fallback to local storage
       currentUser = (await store.get<User>('user')) || null
       if (currentUser) {
-        // Try to get/create active session for this user
-        try {
-          const activeSession = await getActiveSession({
-            data: { userId: currentUser.id },
-          })
-          if (activeSession) {
-            currentSessionId = activeSession.id
-            await store.set('sessionId', currentSessionId)
-            await store.save()
-          } else {
-            // Create a new session if user exists but no active session
-            const sessionResult = await createSession({
-              data: { userId: currentUser.id },
-            })
-            if (sessionResult?.id) {
-              currentSessionId = sessionResult.id
-              await store.set('sessionId', currentSessionId)
-              await store.save()
-            }
-          }
-        } catch (dbError) {
-          console.warn('Failed to manage session:', dbError)
+        // Get session ID from store if available
+        currentSessionId = (await store.get<string>('sessionId')) || null
+        if (!currentSessionId) {
+          // Generate a new session ID for local use
+          currentSessionId = crypto.randomUUID()
+          await store.set('sessionId', currentSessionId)
+          await store.save()
         }
       }
     } catch (error) {
@@ -155,29 +128,8 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function logout(): Promise<void> {
   const store = await getStore()
 
-  // Get session ID from store if not in memory
-  const sessionId =
-    currentSessionId || (await store.get<string>('sessionId')) || null
-  const userId = currentUser?.id || null
-
-  // Delete session from database
-  if (sessionId) {
-    try {
-      await deleteSession({ data: { sessionId } })
-      console.log('Session deleted from database')
-    } catch (error) {
-      console.warn('Failed to delete session from database:', error)
-    }
-  }
-
-  // Also delete all sessions for the user if we have a user ID
-  if (userId) {
-    try {
-      await deleteUserSessions({ data: { userId } })
-    } catch (error) {
-      console.warn('Failed to delete user sessions:', error)
-    }
-  }
+  // In Tauri-only mode, we just clear local storage
+  // No database operations needed
 
   // Clear local state
   currentUser = null

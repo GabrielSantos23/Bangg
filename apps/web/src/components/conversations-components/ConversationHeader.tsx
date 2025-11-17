@@ -79,7 +79,7 @@ export function ConversationHeader({
         </div>
         <div className="flex flex-col items-end gap-1">
           <Button
-            className="bg-linear-to-b from-[#0845a7] to-[#264070] rounded-full text-card-foreground"
+            className="bg-linear-to-b from-[#0845a7] to-[#264070] rounded-full dark:text-card-foreground text-card"
             onClick={async () => {
               try {
                 await invoke("show_menu_window");

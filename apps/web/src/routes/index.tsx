@@ -1,4 +1,3 @@
-import TranscriptionPanel from "@/components/TranscriptionPanel";
 import { getCurrentUser } from "@/services/auth";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -7,19 +6,13 @@ export const Route = createFileRoute("/")({
     const user = await getCurrentUser();
     if (!user) {
       navigate({ to: "/Login" });
-    }
-    else {
+    } else {
       navigate({ to: "/conversation" });
     }
   },
   component: HomeComponent,
 });
 
-
 function HomeComponent() {
-  return (
-  <div>
-
-  </div>
-  );
+  return <></>;
 }

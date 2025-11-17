@@ -24,15 +24,39 @@ pub struct CaptureState {
 
 #[tauri::command]
 pub async fn start_screen_capture(app: tauri::AppHandle) -> Result<(), String> {
-    // Get primary monitor dimensions
+    // Get all monitors and find the one where the main window is located
     let monitors = Monitor::all().map_err(|e| format!("Failed to get monitors: {}", e))?;
-    let primary_monitor = monitors
-        .iter()
-        .find(|m| m.is_primary().unwrap_or(false))
-        .ok_or("No primary monitor found".to_string())?;
+    
+    // Try to get the main window to determine which monitor to capture
+    let main_window = app.get_webview_window("main");
+    let target_monitor = if let Some(window) = main_window {
+        // Get window position to determine which monitor it's on
+        if let Ok(position) = window.outer_position() {
+            monitors
+                .iter()
+                .find(|m| {
+                    let m_x = m.x().unwrap_or(0) as i32;
+                    let m_y = m.y().unwrap_or(0) as i32;
+                    let m_width = m.width().unwrap_or(1920) as i32;
+                    let m_height = m.height().unwrap_or(1080) as i32;
+                    
+                    position.x >= m_x
+                        && position.x < (m_x + m_width)
+                        && position.y >= m_y
+                        && position.y < (m_y + m_height)
+                })
+                .or_else(|| monitors.iter().find(|m| m.is_primary().unwrap_or(false)))
+        } else {
+            monitors.iter().find(|m| m.is_primary().unwrap_or(false))
+        }
+    } else {
+        monitors.iter().find(|m| m.is_primary().unwrap_or(false))
+    };
+
+    let target_monitor = target_monitor.ok_or("No monitor found".to_string())?;
 
     // Capture the full screen first
-    let captured_image = primary_monitor
+    let captured_image = target_monitor
         .capture_image()
         .map_err(|e| format!("Failed to capture image: {}", e))?;
 
@@ -41,16 +65,16 @@ pub async fn start_screen_capture(app: tauri::AppHandle) -> Result<(), String> {
     *state.captured_image.lock().unwrap() = Some(captured_image);
 
     // Get monitor dimensions
-    let monitor_width = primary_monitor.width().unwrap_or(1920) as f64;
-    let monitor_height = primary_monitor.height().unwrap_or(1080) as f64;
-    let monitor_x = primary_monitor.x().unwrap_or(0) as f64;
-    let monitor_y = primary_monitor.y().unwrap_or(0) as f64;
+    let monitor_width = target_monitor.width().unwrap_or(1920) as f64;
+    let monitor_height = target_monitor.height().unwrap_or(1080) as f64;
+    let monitor_x = target_monitor.x().unwrap_or(0) as f64;
+    let monitor_y = target_monitor.y().unwrap_or(0) as f64;
 
-    // Create overlay window for selection - uses the same index.html but main.tsx detects window label
+    // Create overlay window for selection
     let overlay = WebviewWindowBuilder::new(
         &app,
         "capture-overlay",
-        WebviewUrl::App("index.html".into()),
+        WebviewUrl::App("/capture-overlay".into()),
     )
     .title("Screen Capture")
     .inner_size(monitor_width, monitor_height)

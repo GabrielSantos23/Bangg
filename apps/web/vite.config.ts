@@ -8,11 +8,14 @@ export default defineConfig({
   plugins: [
     tanstackStart({
       spa: {
-        enabled: true, // Enable SPA mode (no SSR)
+        enabled: true,
+        prerender: {
+          outputPath: "/index", // 👈 Isso gera /index.html ao invés de /_shell.html
+        },
       },
     }),
-    tailwindcss(),
     react(),
+    tailwindcss(),
   ],
   resolve: {
     alias: {
@@ -20,6 +23,19 @@ export default defineConfig({
     },
   },
   ssr: {
-    noExternal: ["streamdown"],
+    // Mark pg as external so Node.js loads it natively (CommonJS)
+    external: ["pg", "pg-native"],
+    resolve: {
+      conditions: ["node", "import"],
+    },
+  },
+  optimizeDeps: {
+    exclude: ["pg", "pg-native"], // Exclude from client bundle
+  },
+  build: {
+    commonjsOptions: {
+      include: [/pg/, /node_modules/],
+      transformMixedEsModules: true,
+    },
   },
 });

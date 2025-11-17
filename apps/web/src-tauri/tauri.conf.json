@@ -5,9 +5,9 @@
   "identifier": "xyz.bangg.app",
 
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../dist/client",
     "devUrl": "http://localhost:3001",
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bunx turbo dev --filter=!updater",
     "beforeBuildCommand": "bun run build"
   },
 
@@ -28,13 +28,13 @@
         "minimizable": true,
         "maximizable": true,
         "closable": true,
-        "url": "/conversation"
+        "url": "/"
       },
       {
         "label": "menu",
         "title": "Floating Menu",
         "width": 450,
-        "height": 100,
+        "height": 54,
         "decorations": true,
         "transparent": true,
         "alwaysOnTop": true,
@@ -65,7 +65,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["models/ggml-base.en.bin", "oauth_config.json"]
+    "resources": ["models/ggml-base.en.bin", "oauth_config.json", ".env"]
   },
 
   "plugins": {

@@ -6,7 +6,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { useUser } from "@/hooks/useUser";
-import { getChatMessages } from "@/services/chat.server";
+import { getChatMessages } from "@/services/chat";
 import { useScreenshot } from "@/hooks/useScreenshot";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +22,7 @@ interface ChatPanelProps {
   autoScreenshot?: boolean;
   setAutoScreenshot?: (value: boolean) => void;
   onChatClosed?: () => void;
+  initialCapture?: string;
 }
 
 export function ChatPanel({
@@ -29,6 +30,7 @@ export function ChatPanel({
   autoScreenshot = false,
   setAutoScreenshot,
   onChatClosed,
+  initialCapture,
 }: ChatPanelProps) {
   const [inputValue, setInputValue] = useState("");
   const [currentChatId, setCurrentChatId] = useState<string | undefined>(
@@ -38,10 +40,30 @@ export function ChatPanel({
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [isTakingScreenshot, setIsTakingScreenshot] = useState(false);
+  const [hasFocus, setHasFocus] = useState(true); // Assume focused by default
   const { user } = useUser();
   const userId = user?.id;
   const hasLoadedMessagesRef = useRef(false);
+  const initialCaptureAddedRef = useRef(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const { takeScreenshot } = useScreenshot();
+
+  // Add initial capture to attachments when received (only once)
+  useEffect(() => {
+    if (initialCapture && !initialCaptureAddedRef.current) {
+      setAttachments((prev) => {
+        if (!prev.includes(initialCapture)) {
+          initialCaptureAddedRef.current = true;
+          return [...prev, initialCapture];
+        }
+        return prev;
+      });
+    }
+    // Reset when initialCapture changes
+    if (!initialCapture) {
+      initialCaptureAddedRef.current = false;
+    }
+  }, [initialCapture]);
 
   // Update currentChatId when initialChatId prop changes
   useEffect(() => {
@@ -64,9 +86,7 @@ export function ChatPanel({
     const loadMessages = async () => {
       setIsLoadingMessages(true);
       try {
-        const dbMessages = await getChatMessages({
-          data: { chatId: currentChatId },
-        });
+        const dbMessages = await getChatMessages(currentChatId);
         const formattedMessages: UIMessage[] = dbMessages.map((msg) => ({
           id: msg.id,
           role: msg.role as "user" | "assistant" | "system",
@@ -126,24 +146,141 @@ export function ChatPanel({
     }
   }, [currentChatId, initialMessages, messages.length, setMessages]);
 
+  // Handle focus/blur events - check window focus state
   useEffect(() => {
-    // ... (This logic remains the same)
-    const resizeWindow = async () => {
-      const appWindow = getCurrentWindow();
+    let mounted = true;
+
+    const checkFocus = async () => {
       try {
+        const appWindow = getCurrentWindow();
+        if (appWindow && mounted) {
+          const isFocused = await appWindow.isFocused();
+          if (mounted) {
+            setHasFocus(isFocused);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking window focus:", error);
+        // Default to focused if we can't check
+        if (mounted) {
+          setHasFocus(true);
+        }
+      }
+    };
+
+    // Check initial focus state with a small delay to ensure window is ready
+    const timeoutId = setTimeout(() => {
+      checkFocus();
+    }, 100);
+
+    // Listen for window focus events
+    const handleWindowFocus = () => {
+      if (mounted) {
+        setHasFocus(true);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (mounted) {
+        setHasFocus(false);
+      }
+    };
+
+    // Also listen to container focus for better UX
+    const container = chatContainerRef.current;
+    const handleContainerFocus = () => {
+      if (mounted) {
+        setHasFocus(true);
+      }
+    };
+    const handleContainerBlur = (e: FocusEvent) => {
+      // Only set to false if focus is moving outside the container
+      if (!container?.contains(e.relatedTarget as Node) && mounted) {
+        setHasFocus(false);
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("blur", handleWindowBlur);
+
+    if (container) {
+      container.addEventListener("focusin", handleContainerFocus);
+      container.addEventListener("focusout", handleContainerBlur);
+    }
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("blur", handleWindowBlur);
+      if (container) {
+        container.removeEventListener("focusin", handleContainerFocus);
+        container.removeEventListener("focusout", handleContainerBlur);
+      }
+    };
+  }, []);
+
+  // Resize window based on state: messages, focus, and attachments
+  useEffect(() => {
+    let mounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const resizeWindow = async () => {
+      try {
+        const appWindow = getCurrentWindow();
+        if (!appWindow || !mounted) return;
+
         const currentSize = await appWindow.innerSize();
+        if (!mounted) return;
+
         const currentWidth = currentSize.width;
+        const hasScreenshot = attachments.length > 0;
+
+        let height: number;
+
         if (messages.length === 0) {
-          await appWindow.setSize(new LogicalSize(currentWidth, 350));
+          // No messages - base height
+          if (hasScreenshot && hasFocus) {
+            height = 220; // Chat com screenshot e foco
+          } else if (hasScreenshot && !hasFocus) {
+            height = 200; // Chat com screenshot sem foco
+          } else if (hasFocus) {
+            height = 170; // Chat sem screenshot com foco
+          } else {
+            height = 150; // Chat sem screenshot sem foco
+          }
         } else {
-          await appWindow.setSize(new LogicalSize(currentWidth, 600));
+          // Has messages - larger height
+          if (hasScreenshot && hasFocus) {
+            height = 520; // Chat com mensagens, screenshot e foco
+          } else if (hasScreenshot && !hasFocus) {
+            height = 480; // Chat com mensagens, screenshot sem foco
+          } else if (hasFocus) {
+            height = 440; // Chat com mensagens, sem screenshot, com foco
+          } else {
+            height = 400; // Chat com mensagens, sem screenshot, sem foco
+          }
+        }
+
+        if (mounted) {
+          await appWindow.setSize(new LogicalSize(currentWidth, height));
         }
       } catch (error) {
         console.error("Error resizing window:", error);
+        // Don't throw - just log the error
       }
     };
-    resizeWindow();
-  }, [messages.length]);
+
+    // Debounce resize to avoid too many calls
+    timeoutId = setTimeout(() => {
+      resizeWindow();
+    }, 100);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [messages.length, hasFocus, attachments.length]);
 
   const isSending =
     status === "submitted" || status === "streaming" || isTakingScreenshot;
@@ -284,7 +421,11 @@ export function ChatPanel({
   };
 
   return (
-    <div className="flex h-96 flex-col relative">
+    <div
+      ref={chatContainerRef}
+      className="flex h-96 flex-col relative"
+      tabIndex={-1}
+    >
       {/* Close button - only show when there are messages */}
       {messages.length > 0 && (
         <Button

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --port=3001",
     "build": "vite build",
+    "clean": "node scripts/clean.js",
+    "build:tauri": "npm run clean && vite build",
     "serve": "vite preview",
     "start": "vite",
     "check-types": "tsc --noEmit"
@@ -14,7 +16,7 @@
     "@ai-sdk/google": "^2.0.29",
     "@ai-sdk/react": "^2.0.89",
     "@hookform/resolvers": "^5.1.1",
-    "@neondatabase/serverless": "^1.0.2",
+    "pg": "^8.13.1",
     "@platejs/autoformat": "^51.0.0",
     "@platejs/basic-nodes": "^51.0.0",
     "@platejs/code-block": "^51.0.0",
@@ -83,6 +85,7 @@
     "@tanstack/react-router-devtools": "^1.114.27",
     "@tanstack/router-plugin": "^1.114.27",
     "@types/node": "^22.13.13",
+    "@types/pg": "^8.11.10",
     "@types/react": "~19.1.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

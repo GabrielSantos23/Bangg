@@ -15,6 +15,7 @@ fn main() {
     .and_then(|p| p.parent()); // project root
   
   if let Some(root) = project_root {
+    // Copy model file
     let model_source = root.join("models").join("ggml-base.en.bin");
     let model_dest = src_tauri_dir.join("models").join("ggml-base.en.bin");
     
@@ -43,6 +44,25 @@ fn main() {
     } else {
       println!("cargo:warning=Model file not found at: {:?}", model_source);
       println!("cargo:warning=Build will continue, but model won't be bundled");
+    }
+    
+    // Copy .env file from apps/web/.env to src-tauri/.env for bundling
+    let env_source = src_tauri_dir.parent().unwrap().join(".env"); // apps/web/.env
+    let env_dest = src_tauri_dir.join(".env");
+    
+    if env_source.exists() {
+      match fs::copy(&env_source, &env_dest) {
+        Ok(_) => {
+          println!("cargo:warning=Successfully copied .env for bundling");
+          println!("cargo:rerun-if-changed={}", env_source.display());
+        }
+        Err(e) => {
+          println!("cargo:warning=Failed to copy .env file from {:?} to {:?}: {}", env_source, env_dest, e);
+        }
+      }
+    } else {
+      println!("cargo:warning=.env file not found at: {:?}", env_source);
+      println!("cargo:warning=Build will continue, but .env won't be bundled");
     }
   } else {
     println!("cargo:warning=Could not determine project root from: {:?}", src_tauri_dir);

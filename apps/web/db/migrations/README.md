@@ -8,10 +8,11 @@ Este diretório contém as migrações SQL para criar as tabelas do banco de dad
 
 ### Para Novos Projetos:
 
-1. **`create_conversations_table.sql`** - Cria a tabela pai `conversations` (DEVE ser executada primeiro)
-2. **`create_chats_tables.sql`** - Cria as tabelas `chats` e `messages`
-3. **`create_transcriptions_tables.sql`** - Cria as tabelas `transcriptions` e `transcription_segments`
-4. **`create_summaries_table.sql`** - Cria a tabela `summaries`
+1. **`create_users_and_sessions_tables.sql`** - Cria as tabelas `users` e `sessions` (DEVE ser executada primeiro para autenticação)
+2. **`create_conversations_table.sql`** - Cria a tabela pai `conversations`
+3. **`create_chats_tables.sql`** - Cria as tabelas `chats` e `messages`
+4. **`create_transcriptions_tables.sql`** - Cria as tabelas `transcriptions` e `transcription_segments`
+5. **`create_summaries_table.sql`** - Cria a tabela `summaries`
 
 ### Para Projetos Existentes (com dados):
 
@@ -24,7 +25,7 @@ Este diretório contém as migrações SQL para criar as tabelas do banco de dad
 
 ### Opção 1: Executar via SQL direto
 
-Execute os arquivos SQL na ordem listada acima no seu banco de dados PostgreSQL/Neon.
+Execute os arquivos SQL na ordem listada acima no seu banco de dados PostgreSQL/Supabase.
 
 ### Opção 2: Executar via código TypeScript
 

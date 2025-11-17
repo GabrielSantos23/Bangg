@@ -2,12 +2,19 @@ import { MeetingList } from "@/components/meeting-list";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "@/hooks/useUser";
-import { getUserConversations } from "@/services/conversation.server";
+import { getUserConversations } from "@/services/conversation";
 import { ConversationHeader } from "@/components/conversations-components/ConversationHeader";
 import { DashedBorder } from "@/components/DashedBorder";
 import { useVisibility } from "@/contexts/VisibilityContext";
+import { getCurrentUser } from "@/services/auth";
 
 export const Route = createFileRoute("/conversation/")({
+  beforeLoad: async ({ navigate }) => {
+    const user = await getCurrentUser();
+    if (!user) {
+      navigate({ to: "/Login" });
+    }
+  },
   component: RouteComponent,
 });
 
@@ -43,9 +50,7 @@ function RouteComponent() {
       if (!isRefresh) {
         setIsLoading(true);
       }
-      const conversations = await getUserConversations({
-        data: { userId: user.id },
-      });
+      const conversations = await getUserConversations(user.id);
 
       // Group conversations by date
       const grouped = groupConversationsByDate(conversations);
@@ -267,7 +272,6 @@ function RouteComponent() {
           />
         )}
 
-        {/* Main content */}
         <main className="mx-auto   py-8 pb-20 max-w-5xl">
           {isLoading ? (
             <p className="mb-8 text-muted-foreground h-screen flex items-center justify-center">

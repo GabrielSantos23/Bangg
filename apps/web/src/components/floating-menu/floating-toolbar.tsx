@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Eye, X, GripVertical, EyeOff } from "lucide-react";
+import {
+  MessageSquare,
+  Eye,
+  X,
+  GripVertical,
+  EyeOff,
+  Camera,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChatPanel } from "./panels/chat-panel";
@@ -26,12 +33,14 @@ import {
 } from "@/services/transcription.server";
 import { listen } from "@tauri-apps/api/event";
 import { usePanelWindowResize } from "@/hooks/usePanelWindowResize";
+import { useScreenCapture } from "@/hooks/useScreenCapture";
 
 type PanelType = "chat" | "grid" | "models" | "help" | "settings" | null;
 
 export function FloatingToolbar() {
   const [activePanel, setActivePanel] = useState<PanelType>(null);
-  const { isVisible, isContentProtected, toggleVisibilityAndProtection } = useVisibility();
+  const { isVisible, isContentProtected, toggleVisibilityAndProtection } =
+    useVisibility();
   const [isRecording, setIsRecording] = useState(false);
   const [isStartingRecording, setIsStartingRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -48,13 +57,7 @@ export function FloatingToolbar() {
   // Hook para gerenciar redimensionamento automático da janela baseado no painel ativo
   usePanelWindowResize({ activePanel, restoreDelay: 350 });
 
-  const {
-    settings,
-    toggleAppIconVisibility,
-    toggleAlwaysOnTop,
-    toggleAutostart,
-    isLoading,
-  } = useAppSettings();
+  const { startCapture, capturedImage, isCapturing } = useScreenCapture();
 
   // Intercept close event to hide window instead of closing
   useEffect(() => {
@@ -142,6 +145,48 @@ export function FloatingToolbar() {
       }
     };
   }, []);
+
+  // Listen for screen capture trigger (from shortcut)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        unlisten = await listen("trigger-screen-capture", () => {
+          // Open chat if not already open
+          if (activePanel !== "chat") {
+            setActivePanel("chat");
+          }
+          // Start capture
+          startCapture();
+        });
+      } catch (error) {
+        console.error("Failed to setup screen capture listener:", error);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      setupListener();
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [activePanel, startCapture]);
+
+  // Handle captured image - open chat and pass image
+  useEffect(() => {
+    if (capturedImage) {
+      // Open chat panel if not already open
+      if (activePanel !== "chat") {
+        setActivePanel("chat");
+      }
+      // The image will be passed to ChatPanel via props
+    }
+  }, [capturedImage, activePanel]);
 
   const togglePanel = async (panel: PanelType) => {
     const wasActive = activePanel === panel;
@@ -281,7 +326,7 @@ export function FloatingToolbar() {
           await saveTranscriptionSegments({
             data: {
               transcriptionId: currentTranscriptionId,
-              segments: segments.map(seg => ({
+              segments: segments.map((seg) => ({
                 text: seg.text,
                 startTime: seg.start,
                 endTime: seg.end,
@@ -327,6 +372,17 @@ export function FloatingToolbar() {
       onClick: () => togglePanel("chat"),
     },
     {
+      id: "capture" as const,
+      icon: Camera,
+      label: "Capture",
+      onClick: () => {
+        if (activePanel !== "chat") {
+          setActivePanel("chat");
+        }
+        startCapture();
+      },
+    },
+    {
       id: "grab" as const,
       icon: GripVertical,
       label: "Grab Button",
@@ -340,7 +396,7 @@ export function FloatingToolbar() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 250, damping: 22 }}
-        className="fixed top-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-x-4"
+        className="fixed  left-1/2 z-50 -translate-x-1/2 flex items-center gap-x-4"
       >
         <motion.div
           layout
@@ -420,7 +476,8 @@ export function FloatingToolbar() {
                           isLast && "mr-2 cursor-grab",
                           isFirst && "ml-2",
                           // Destaque visual quando protegido
-                          button.id === "visibility" && isContentProtected &&
+                          button.id === "visibility" &&
+                            isContentProtected &&
                             "ring-2 ring-amber-500/50"
                         )}
                         {...(button.id === "grab"
@@ -487,7 +544,7 @@ export function FloatingToolbar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.97 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
-            className="fixed top-24 left-1/2 z-40 max-w-md w-full -translate-x-1/2 px-4"
+            className="fixed top-12 left-1/2 z-40 max-w-md w-full -translate-x-1/2 px-4"
           >
             <motion.div
               layout
@@ -501,12 +558,9 @@ export function FloatingToolbar() {
                   autoScreenshot={autoScreenshot}
                   setAutoScreenshot={setAutoScreenshot}
                   onChatClosed={handleChatClosed}
+                  initialCapture={capturedImage || undefined}
                 />
               )}
-              {activePanel === "grid" && <GridPanel />}
-              {activePanel === "models" && <ModelsPanel />}
-              {activePanel === "help" && <HelpPanel />}
-              {activePanel === "settings" && <SettingsPanel />}
             </motion.div>
           </motion.div>
         )}
