@@ -94,6 +94,7 @@ pub struct Message {
     pub role: String,
     pub content: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub attachments: Option<Vec<String>>,
 }
 
 impl FromRow<'_, sqlx::postgres::PgRow> for Message {
@@ -106,6 +107,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for Message {
             created_at: row
                 .try_get::<chrono::NaiveDateTime, _>("created_at")?
                 .and_utc(),
+            attachments: row.try_get("attachments").ok().flatten(),
         })
     }
 }
@@ -509,18 +511,80 @@ pub async fn db_get_messages(
     state: State<'_, DbState>,
     chat_id: Uuid,
 ) -> Result<Vec<Message>, String> {
-    let messages = sqlx::query_as::<_, Message>(
+    // First, get all messages
+    let messages_rows = sqlx::query(
         r#"
-        SELECT id, chat_id, role, content, created_at
-        FROM messages
-        WHERE chat_id = $1
-        ORDER BY created_at ASC
+        SELECT m.id, m.chat_id, m.role, m.content, m.created_at
+        FROM messages m
+        WHERE m.chat_id = $1
+        ORDER BY m.created_at ASC
         "#,
     )
     .bind(chat_id)
     .fetch_all(&state.pool)
     .await
     .map_err(|e| format!("Failed to fetch messages: {}", e))?;
+
+    // Then, fetch attachments for each message and convert to data URLs
+    let mut messages = Vec::new();
+    for row in messages_rows {
+        let message_id: Uuid = row.try_get("id")
+            .map_err(|e| format!("Failed to get message id: {}", e))?;
+        
+        // Fetch attachments for this message
+        // Use explicit type casting to ensure UUID type is correctly inferred
+        let attachments = match sqlx::query(
+            r#"
+            SELECT attachment_data, mime_type
+            FROM message_attachments
+            WHERE message_id::text = $1::text
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(message_id.to_string())
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(rows) => {
+                rows.into_iter()
+                    .map(|att_row| {
+                        let base64_data: String = att_row.try_get("attachment_data")
+                            .unwrap_or_default();
+                        let mime_type: String = att_row.try_get("mime_type")
+                            .unwrap_or_else(|_| "image/png".to_string());
+                        
+                        // Convert to data URL
+                        format!("data:{};base64,{}", mime_type, base64_data)
+                    })
+                    .collect::<Vec<String>>()
+            }
+            Err(e) => {
+                // Log error but don't fail the entire request
+                eprintln!("Failed to fetch attachments for message {}: {}", message_id, e);
+                Vec::new()
+            }
+        };
+
+        messages.push(Message {
+            id: row.try_get("id")
+                .map_err(|e| format!("Failed to get id: {}", e))?,
+            chat_id: row.try_get("chat_id")
+                .map_err(|e| format!("Failed to get chat_id: {}", e))?,
+            role: row.try_get("role")
+                .map_err(|e| format!("Failed to get role: {}", e))?,
+            content: row.try_get("content")
+                .map_err(|e| format!("Failed to get content: {}", e))?,
+            created_at: row
+                .try_get::<chrono::NaiveDateTime, _>("created_at")
+                .map_err(|e| format!("Failed to get created_at: {}", e))?
+                .and_utc(),
+            attachments: if attachments.is_empty() {
+                None
+            } else {
+                Some(attachments)
+            },
+        });
+    }
 
     Ok(messages)
 }

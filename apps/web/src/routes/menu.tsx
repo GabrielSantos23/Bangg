@@ -1,7 +1,7 @@
-import { FloatingToolbar } from '@/components/floating-menu/floating-toolbar'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { FloatingChat } from '@/components/new-floating-menu/floating-chat'
 
 export const Route = createFileRoute('/menu')({
   component: RouteComponent,
@@ -32,5 +32,7 @@ function RouteComponent() {
     checkRoute()
   }, [navigate])
 
-  return <div> <FloatingToolbar /></div>
+  return <div className='w-full  h-full'>
+    <FloatingChat/>
+  </div>
 }

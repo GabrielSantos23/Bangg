@@ -28,6 +28,7 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: Date;
+  attachments?: string[];
 }
 
 // Helper para converter tipos do banco para tipos do frontend
@@ -48,6 +49,7 @@ function convertMessage(db: DbMessage): Message {
     role: db.role as "user" | "assistant" | "system",
     content: db.content,
     createdAt: new Date(db.created_at),
+    attachments: db.attachments,
   };
 }
 

@@ -1,5 +1,5 @@
 import { MeetingList } from "@/components/meeting-list";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "@/hooks/useUser";
 import { getUserConversations } from "@/services/conversation";
@@ -7,6 +7,7 @@ import { ConversationHeader } from "@/components/conversations-components/Conver
 import { DashedBorder } from "@/components/DashedBorder";
 import { useVisibility } from "@/contexts/VisibilityContext";
 import { getCurrentUser } from "@/services/auth";
+import { Bot } from "lucide-react";
 
 export const Route = createFileRoute("/conversation/")({
   beforeLoad: async ({ navigate }) => {
@@ -258,7 +259,7 @@ function RouteComponent() {
   return (
     <div
       ref={containerRef}
-      className="h-screen bg-background text-foreground overflow-y-auto relative"
+      className="h-screen bg-transparent text-foreground overflow-y-auto relative"
     >
       <div className="w-full">
         {/* Header */}
@@ -271,7 +272,10 @@ function RouteComponent() {
             }}
           />
         )}
-
+        <Link to="/chatbot">
+          <Bot className="w-4 h-4" />
+          AI Chatbot
+        </Link>
         <main className="mx-auto   py-8 pb-20 max-w-5xl">
           {isLoading ? (
             <p className="mb-8 text-muted-foreground h-screen flex items-center justify-center">

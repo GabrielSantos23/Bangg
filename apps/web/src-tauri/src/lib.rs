@@ -7,17 +7,21 @@ use tauri_plugin_opener;
 use tauri_plugin_posthog::{init as posthog_init, PostHogConfig, PostHogOptions};
 use tauri_plugin_shell;
 use tokio::task::JoinHandle;
-
+mod gemini;
 // === Modules ===
 mod audio_utils;
 mod capture;
 mod database;
 mod login;
-mod realtime_transcription; // <-- your real-time whisper logic
+mod realtime_transcription;
 mod shortcuts;
 mod system_audio_transcription;
 mod transcription;
-mod window; // <-- new real-time system audio transcription
+mod window;
+
+// === UPDATED IMPORT HERE ===
+// We replaced `apply_blur` with `apply_mica` (and `apply_acrylic` if you want that instead)
+use window_vibrancy::{apply_acrylic, apply_mica, apply_vibrancy, NSVisualEffectMaterial};
 
 // === Imports ===
 use capture::CaptureState;
@@ -60,12 +64,10 @@ struct OpenChatPayload {
 
 #[tauri::command]
 fn show_menu_window_and_emit(app: tauri::AppHandle, chat_id: String) -> Result<(), String> {
-    // Get the menu window (it should already exist from config)
     let menu_window = app
         .get_webview_window("menu")
         .ok_or("Menu window not found")?;
 
-    // Show and focus the menu window
     menu_window
         .show()
         .map_err(|e| format!("Failed to show menu window: {}", e))?;
@@ -73,10 +75,8 @@ fn show_menu_window_and_emit(app: tauri::AppHandle, chat_id: String) -> Result<(
         .set_focus()
         .map_err(|e| format!("Failed to focus menu window: {}", e))?;
 
-    // Small delay to ensure the window is ready
     std::thread::sleep(std::time::Duration::from_millis(100));
 
-    // Emit the open-chat event
     let payload = OpenChatPayload { chat_id };
     menu_window
         .emit("open-chat", payload)
@@ -87,12 +87,10 @@ fn show_menu_window_and_emit(app: tauri::AppHandle, chat_id: String) -> Result<(
 
 #[tauri::command]
 fn show_menu_window(app: tauri::AppHandle) -> Result<(), String> {
-    // Get the menu window (it should already exist from config)
     let menu_window = app
         .get_webview_window("menu")
         .ok_or("Menu window not found")?;
 
-    // Show and focus the menu window
     menu_window
         .show()
         .map_err(|e| format!("Failed to show menu window: {}", e))?;
@@ -141,31 +139,60 @@ pub fn run() {
         .manage(RealtimeState::default())
         .manage(SystemAudioTranscriptionState::default())
         .manage(SystemAudioRecordingState::default())
-        .manage(shortcuts::WindowVisibility {
-            is_hidden: Mutex::new(false),
-        })
         .manage(shortcuts::RegisteredShortcuts::default())
         .setup(|app| {
-    // Initialize database pool synchronously in setup
-    let app_handle = app.handle().clone();
-    
-    // CHANGED: Use Tauri's internal async runtime helper instead of creating a new Runtime
-    // This prevents conflicts with the main event loop
-    let pool = tauri::async_runtime::block_on(async {
-        database::create_pool(Some(&app_handle)).await
-    })
-    .expect("❌ CRITICAL: Failed to connect to database. Check your .env and database URL.");
+            let app_handle = app.handle().clone();
 
-    // If we get here, the pool is valid
-    log::info!("✓ Database pool created successfully");
-    app.manage(database::DbState { pool });
-    log::info!("✓ DbState managed successfully");
-    
-    Ok(())
-})
+            // === 1. Setup Logic for "menu" Window ===
+            if let Some(menu_window) = app.get_webview_window("menu") {
+                #[cfg(target_os = "macos")]
+                {
+                    apply_vibrancy(&menu_window, NSVisualEffectMaterial::HudWindow, None, None)
+                        .expect(
+                            "Unsupported platform! 'apply_vibrancy' is only supported on macOS",
+                        );
+                }
+
+                // UPDATED: Using Mica for Windows
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = apply_acrylic(&menu_window, Some((0, 0, 0, 10)));
+                }
+            }
+
+            // === 2. Setup Logic for "main-window" ===
+            if let Some(main_window) = app.get_webview_window("main-window") {
+                #[cfg(target_os = "macos")]
+                {
+                    apply_vibrancy(&main_window, NSVisualEffectMaterial::HudWindow, None, None)
+                        .expect(
+                            "Unsupported platform! 'apply_vibrancy' is only supported on macOS",
+                        );
+                }
+
+                // UPDATED: Using Mica for Windows
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = apply_acrylic(&main_window, Some((0, 0, 0, 10)));
+                }
+            }
+
+            // Database connection
+            let pool = tauri::async_runtime::block_on(async {
+                database::create_pool(Some(&app_handle)).await
+            })
+            .expect(
+                "❌ CRITICAL: Failed to connect to database. Check your .env and database URL.",
+            );
+
+            log::info!("✓ Database pool created successfully");
+            app.manage(database::DbState { pool });
+            log::info!("✓ DbState managed successfully");
+
+            Ok(())
+        })
         // === Commands ===
         .invoke_handler(tauri::generate_handler![
-            // Auth & capture
             start_oauth_server,
             show_menu_window_and_emit,
             show_menu_window,
@@ -175,66 +202,44 @@ pub fn run() {
             capture::capture_selected_area,
             capture::close_overlay_window,
             window::set_window_height,
-            // Whisper-related (static transcription)
             transcription::initialize_whisper,
             transcription::transcribe_audio,
             transcription::transcribe_audio_with_timestamps,
             transcription::check_whisper_status,
             transcription::get_model_paths,
             transcription::get_model_path,
-            // Real-time transcription
             start_transcription,
             stop_transcription,
-            // System audio real-time transcription
             start_system_audio_transcription,
             stop_system_audio_transcription,
-            // System audio recording (non-real-time)
             start_system_audio_recording,
             stop_system_audio_recording_and_transcribe,
-            // Audio file utils
             audio_utils::save_audio_buffer,
-            audio_utils::cleanup_audio_file,
             audio_utils::list_audio_files,
             database::db_get_conversations,
             database::db_get_conversation_by_id,
-            database::db_create_conversation,
             database::db_update_conversation,
             database::db_delete_conversation,
-            
-            // Conversation message commands
             database::db_get_conversation_messages,
             database::db_create_conversation_message,
-            
-            // Chat commands
             database::db_get_chats,
             database::db_get_chat_by_id,
             database::db_create_chat,
             database::db_update_chat,
-            database::db_delete_chat,
             database::db_get_chat_by_conversation_id,
-            
-            // Message commands
             database::db_get_messages,
-            database::db_create_message,
             database::db_delete_message,
-            
-            // Summary commands
             database::db_get_summary_by_conversation_id,
             database::db_create_summary,
             database::db_update_summary,
-            
-            // Transcription commands
             database::db_get_transcriptions,
             database::db_get_transcription_by_id,
-            database::db_create_transcription,
             database::db_get_transcription_segments,
             database::db_create_transcription_segment,
             database::db_get_transcription_segments_by_conversation_id,
-            
-            // Test command
             database::db_test_connection,
+            gemini::stream_gemini_request,
         ])
-        // === Run ===
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -66,7 +66,7 @@ function RootComponent() {
               </div>
             ) : (
               <TitleBar>
-                <div className="grid grid-rows-[auto_1fr] h-svh">
+                <div className="grid grid-rows-[auto_1fr] h-svh bg-transparent!">
                   <Outlet />
                 </div>
               </TitleBar>

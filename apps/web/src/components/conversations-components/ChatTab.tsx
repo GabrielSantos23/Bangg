@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  getChatByConversation,
-  getChatMessages,
-} from "@/services/chat";
+import { getChatByConversation, getChatMessages } from "@/services/chat";
 import type { Message } from "@/services/chat";
 import type { UIMessage } from "ai";
-import { UserMessage } from "@/components/floating-menu/chat-components/UserMessage";
+import { UserMessageChatTab } from "@/components/floating-menu/chat-components/UserMessageChatTab";
 import { AssistantMessage } from "@/components/floating-menu/chat-components/AssistantMessage";
 
 interface ChatTabProps {
@@ -43,11 +40,43 @@ export function ChatTab({ conversationId }: ChatTabProps) {
 
         // Converter mensagens do banco para formato UIMessage
         const formattedMessages: UIMessage[] = dbMessages.map(
-          (msg: Message) => ({
-            id: msg.id,
-            role: msg.role as "user" | "assistant" | "system",
-            parts: [{ type: "text" as const, text: msg.content }],
-          })
+          (msg: Message) => {
+            const parts: any[] = [];
+
+            // Adicionar attachments como parts de imagem primeiro (para exibir antes do texto)
+            // Verificar se attachments existe e é um array válido
+            if (
+              msg.attachments &&
+              Array.isArray(msg.attachments) &&
+              msg.attachments.length > 0
+            ) {
+              msg.attachments.forEach((attachment) => {
+                // Garantir que o attachment seja uma string válida
+                if (attachment && typeof attachment === "string") {
+                  parts.push({
+                    type: "image",
+                    image: attachment, // attachment is already a data URL
+                  });
+                }
+              });
+            }
+
+            // Adicionar part de texto apenas se houver conteúdo
+            if (msg.content && msg.content.trim()) {
+              parts.push({ type: "text" as const, text: msg.content });
+            }
+
+            // Se não houver parts (sem texto e sem attachments), criar um part de texto vazio
+            if (parts.length === 0) {
+              parts.push({ type: "text" as const, text: "" });
+            }
+
+            return {
+              id: msg.id,
+              role: msg.role as "user" | "assistant" | "system",
+              parts: parts,
+            };
+          }
         );
 
         setMessages(formattedMessages);
@@ -101,7 +130,7 @@ export function ChatTab({ conversationId }: ChatTabProps) {
           const isLastMessage = index === messages.length - 1;
 
           if (message.role === "user") {
-            return <UserMessage key={message.id} message={message} />;
+            return <UserMessageChatTab key={message.id} message={message} />;
           }
 
           if (message.role === "assistant") {
@@ -116,7 +145,6 @@ export function ChatTab({ conversationId }: ChatTabProps) {
             );
           }
 
-          // Ignorar mensagens do sistema
           return null;
         })}
       </div>

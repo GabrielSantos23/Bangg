@@ -74,7 +74,7 @@ function TitleBar({ children, onSearchClick }: TitleBarProps) {
   };
 
   return (
-    <div className="flex flex-col  w-full h-[calc(100vh-1px)] min-h-0 bg-sidebar ">
+    <div className="flex flex-col  w-full h-[calc(100vh-1px)] min-h-0 bg-sidebar/50 ">
       <div
         data-tauri-drag-region
         className=" flex h-8 items-center justify-between select-none sticky top-0 left-0 right-0 z-50"
@@ -138,7 +138,7 @@ function TitleBar({ children, onSearchClick }: TitleBarProps) {
           </button>
         </div>
       </div>
-      <div className="flex-1 border mx-1 rounded-md z-50 mb-1 relative bg-background h-[calc(100vh-1px)] overflow-hidden">
+      <div className="flex-1 border mx-1 rounded-md z-50 mb-1 relative bg-background/70 backdrop-blur-sm h-[calc(100vh-1px)] overflow-hidden">
         {children}
         <AnimatePresence>
           {!isVisible && (

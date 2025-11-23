@@ -10,6 +10,18 @@ import { google } from "@ai-sdk/google";
 import { getClient } from "../../db/db";
 import { getCurrentUser } from "@/services/auth";
 
+// --- CORS Configuration (Crucial for Tauri) ---
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*", // Allows Tauri (custom protocol) to access
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Chat-Id, X-User-Id, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+// ------------------------------------------------
+
+// Get API key at module level (same pattern as api.chatbot.ts)
+const GOOGLE_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
 const DEFAULT_SYSTEM_PROMPT =
   "You are a helpful assistant that chats with the user about productivity and creative workflows. Keep replies concise and actionable.";
 
@@ -29,6 +41,10 @@ function extractTextFromMessage(message: UIMessage | undefined) {
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
+      // Handle CORS preflight requests
+      OPTIONS: () => {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      },
       POST: async ({ request }) => {
         const client = await getClient();
         if (!client) {
@@ -36,7 +52,7 @@ export const Route = createFileRoute("/api/chat")({
             JSON.stringify({ error: "Database client not available" }),
             {
               status: 500,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...corsHeaders },
             }
           );
         }
@@ -72,7 +88,7 @@ export const Route = createFileRoute("/api/chat")({
               JSON.stringify({ error: "Unauthorized - userId required" }),
               {
                 status: 401,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...corsHeaders },
               }
             );
           }
@@ -82,7 +98,7 @@ export const Route = createFileRoute("/api/chat")({
               JSON.stringify({ error: "messages array is required" }),
               {
                 status: 400,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...corsHeaders },
               }
             );
           }
@@ -103,8 +119,8 @@ export const Route = createFileRoute("/api/chat")({
           if (chatId) {
             const existingChat = (await client.query(
               `SELECT id, user_id, title
-               FROM chats
-               WHERE id = $1 AND user_id = $2`,
+                FROM chats
+                WHERE id = $1 AND user_id = $2`,
               [chatId, userId]
             )) as Array<{ id: string; user_id: string; title: string | null }>;
 
@@ -113,7 +129,7 @@ export const Route = createFileRoute("/api/chat")({
                 JSON.stringify({ error: "Chat not found for this user" }),
                 {
                   status: 404,
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...corsHeaders },
                 }
               );
             }
@@ -130,7 +146,7 @@ export const Route = createFileRoute("/api/chat")({
             const conversationId = randomUUID();
             await client.query(
               `INSERT INTO conversations (id, user_id, title, type, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
               [conversationId, userId, derivedTitle || "Untitled Chat", "chat"]
             );
 
@@ -138,7 +154,7 @@ export const Route = createFileRoute("/api/chat")({
             chatId = randomUUID();
             await client.query(
               `INSERT INTO chats (id, conversation_id, user_id, title, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
               [chatId, conversationId, userId, derivedTitle || "Untitled Chat"]
             );
           }
@@ -159,7 +175,7 @@ export const Route = createFileRoute("/api/chat")({
             if (textContent || hasImages) {
               await client.query(
                 `INSERT INTO messages (id, chat_id, role, content, created_at)
-                 VALUES ($1, $2, 'user', $3, CURRENT_TIMESTAMP)`,
+                  VALUES ($1, $2, 'user', $3, CURRENT_TIMESTAMP)`,
                 [messageId, chatId, textContent || "[Image message]"]
               );
 
@@ -181,7 +197,7 @@ export const Route = createFileRoute("/api/chat")({
 
                   await client.query(
                     `INSERT INTO message_attachments (id, message_id, attachment_type, attachment_data, mime_type, created_at)
-                     VALUES ($1, $2, 'image', $3, 'image/png', CURRENT_TIMESTAMP)`,
+                      VALUES ($1, $2, 'image', $3, 'image/png', CURRENT_TIMESTAMP)`,
                     [attachmentId, messageId, base64Data]
                   );
                 } catch (attachmentError: any) {
@@ -285,20 +301,23 @@ export const Route = createFileRoute("/api/chat")({
               JSON.stringify({ error: "No valid messages to process" }),
               {
                 status: 400,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...corsHeaders },
               }
             );
           }
 
           // Check if Google API key is configured
-          const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-          if (!apiKey) {
+          if (!GOOGLE_API_KEY) {
             console.error("GOOGLE_GENERATIVE_AI_API_KEY is not configured");
             return new Response(
-              JSON.stringify({ error: "AI service not configured" }),
+              JSON.stringify({
+                error: "AI service not configured",
+                details:
+                  "Please set GOOGLE_GENERATIVE_AI_API_KEY in your .env file",
+              }),
               {
                 status: 500,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...corsHeaders },
               }
             );
           }
@@ -340,7 +359,7 @@ export const Route = createFileRoute("/api/chat")({
                 }),
                 {
                   status: streamErrorStatus,
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...corsHeaders },
                 }
               );
             }
@@ -356,6 +375,7 @@ export const Route = createFileRoute("/api/chat")({
             headers: {
               "X-Chat-Id": chatId,
               "Access-Control-Expose-Headers": "X-Chat-Id",
+              ...corsHeaders, // Apply CORS headers here
             },
             onFinish: async ({ responseMessage }) => {
               try {
@@ -365,19 +385,19 @@ export const Route = createFileRoute("/api/chat")({
                 if (assistantContent) {
                   await client.query(
                     `INSERT INTO messages (id, chat_id, role, content, created_at)
-                     VALUES ($1, $2, 'assistant', $3, CURRENT_TIMESTAMP)`,
+                      VALUES ($1, $2, 'assistant', $3, CURRENT_TIMESTAMP)`,
                     [randomUUID(), chatId, assistantContent]
                   );
                 }
 
                 await client.query(
                   `UPDATE chats
-                   SET updated_at = CURRENT_TIMESTAMP,
-                       title = CASE
-                         WHEN (title IS NULL OR title = '') AND $2 <> '' THEN $2
-                         ELSE title
-                       END
-                   WHERE id = $1`,
+                    SET updated_at = CURRENT_TIMESTAMP,
+                        title = CASE
+                          WHEN (title IS NULL OR title = '') AND $2 <> '' THEN $2
+                          ELSE title
+                        END
+                    WHERE id = $1`,
                   [chatId, derivedTitle]
                 );
               } catch (dbError) {
@@ -437,7 +457,7 @@ export const Route = createFileRoute("/api/chat")({
             }),
             {
               status: statusCode >= 400 && statusCode < 600 ? statusCode : 500,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...corsHeaders }, // Apply CORS headers here
             }
           );
         }

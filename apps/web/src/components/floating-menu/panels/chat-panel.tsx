@@ -6,7 +6,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { useUser } from "@/hooks/useUser";
-import { getChatMessages } from "@/services/chat";
+import { getChatMessages, type Message } from "@/services/chat";
 import { useScreenshot } from "@/hooks/useScreenshot";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +14,7 @@ import { Loader } from "@/components/ai-elements/loader";
 import { ChatInputForm } from "../chat-components/chat-input-form";
 import { UserMessage } from "../chat-components/UserMessage";
 import { AssistantMessage } from "../chat-components/AssistantMessage";
-import { Message, MessageContent } from "@/components/ai-elements/message";
+import { MessageContent } from "@/components/ai-elements/message";
 
 interface ChatPanelProps {
   onClose?: () => void;
@@ -87,11 +87,45 @@ export function ChatPanel({
       setIsLoadingMessages(true);
       try {
         const dbMessages = await getChatMessages(currentChatId);
-        const formattedMessages: UIMessage[] = dbMessages.map((msg) => ({
-          id: msg.id,
-          role: msg.role as "user" | "assistant" | "system",
-          parts: [{ type: "text" as const, text: msg.content }],
-        }));
+        const formattedMessages: UIMessage[] = dbMessages.map(
+          (msg: Message) => {
+            const parts: any[] = [];
+
+            // Adicionar attachments como parts de imagem primeiro (para exibir antes do texto)
+            // Verificar se attachments existe e é um array válido
+            if (
+              msg.attachments &&
+              Array.isArray(msg.attachments) &&
+              msg.attachments.length > 0
+            ) {
+              msg.attachments.forEach((attachment) => {
+                // Garantir que o attachment seja uma string válida
+                if (attachment && typeof attachment === "string") {
+                  parts.push({
+                    type: "image",
+                    image: attachment, // attachment is already a data URL
+                  });
+                }
+              });
+            }
+
+            // Adicionar part de texto apenas se houver conteúdo
+            if (msg.content && msg.content.trim()) {
+              parts.push({ type: "text" as const, text: msg.content });
+            }
+
+            // Se não houver parts (sem texto e sem attachments), criar um part de texto vazio
+            if (parts.length === 0) {
+              parts.push({ type: "text" as const, text: "" });
+            }
+
+            return {
+              id: msg.id,
+              role: msg.role as "user" | "assistant" | "system",
+              parts: parts,
+            };
+          }
+        );
         setInitialMessages(formattedMessages);
         hasLoadedMessagesRef.current = true;
       } catch (error) {

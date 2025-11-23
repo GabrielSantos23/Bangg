@@ -35,6 +35,7 @@ export interface Message {
   role: string
   content: string
   created_at: string
+  attachments?: string[]
 }
 
 export interface Summary {

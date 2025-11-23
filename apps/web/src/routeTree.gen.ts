@@ -10,17 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MenuRouteImport } from './routes/menu'
+import { Route as ChatbotRouteImport } from './routes/chatbot'
 import { Route as CaptureOverlayRouteImport } from './routes/capture-overlay'
 import { Route as LoginRouteImport } from './routes/Login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConversationIndexRouteImport } from './routes/conversation/index'
 import { Route as ConversationIdRouteImport } from './routes/conversation/$id'
 import { Route as ApiConversationChatRouteImport } from './routes/api.conversation-chat'
+import { Route as ApiChatbotRouteImport } from './routes/api.chatbot'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
 
 const MenuRoute = MenuRouteImport.update({
   id: '/menu',
   path: '/menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatbotRoute = ChatbotRouteImport.update({
+  id: '/chatbot',
+  path: '/chatbot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CaptureOverlayRoute = CaptureOverlayRouteImport.update({
@@ -53,6 +60,11 @@ const ApiConversationChatRoute = ApiConversationChatRouteImport.update({
   path: '/api/conversation-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatbotRoute = ApiChatbotRouteImport.update({
+  id: '/api/chatbot',
+  path: '/api/chatbot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -63,8 +75,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/Login': typeof LoginRoute
   '/capture-overlay': typeof CaptureOverlayRoute
+  '/chatbot': typeof ChatbotRoute
   '/menu': typeof MenuRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/chatbot': typeof ApiChatbotRoute
   '/api/conversation-chat': typeof ApiConversationChatRoute
   '/conversation/$id': typeof ConversationIdRoute
   '/conversation': typeof ConversationIndexRoute
@@ -73,8 +87,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/Login': typeof LoginRoute
   '/capture-overlay': typeof CaptureOverlayRoute
+  '/chatbot': typeof ChatbotRoute
   '/menu': typeof MenuRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/chatbot': typeof ApiChatbotRoute
   '/api/conversation-chat': typeof ApiConversationChatRoute
   '/conversation/$id': typeof ConversationIdRoute
   '/conversation': typeof ConversationIndexRoute
@@ -84,8 +100,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/Login': typeof LoginRoute
   '/capture-overlay': typeof CaptureOverlayRoute
+  '/chatbot': typeof ChatbotRoute
   '/menu': typeof MenuRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/chatbot': typeof ApiChatbotRoute
   '/api/conversation-chat': typeof ApiConversationChatRoute
   '/conversation/$id': typeof ConversationIdRoute
   '/conversation/': typeof ConversationIndexRoute
@@ -96,8 +114,10 @@ export interface FileRouteTypes {
     | '/'
     | '/Login'
     | '/capture-overlay'
+    | '/chatbot'
     | '/menu'
     | '/api/chat'
+    | '/api/chatbot'
     | '/api/conversation-chat'
     | '/conversation/$id'
     | '/conversation'
@@ -106,8 +126,10 @@ export interface FileRouteTypes {
     | '/'
     | '/Login'
     | '/capture-overlay'
+    | '/chatbot'
     | '/menu'
     | '/api/chat'
+    | '/api/chatbot'
     | '/api/conversation-chat'
     | '/conversation/$id'
     | '/conversation'
@@ -116,8 +138,10 @@ export interface FileRouteTypes {
     | '/'
     | '/Login'
     | '/capture-overlay'
+    | '/chatbot'
     | '/menu'
     | '/api/chat'
+    | '/api/chatbot'
     | '/api/conversation-chat'
     | '/conversation/$id'
     | '/conversation/'
@@ -127,8 +151,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   CaptureOverlayRoute: typeof CaptureOverlayRoute
+  ChatbotRoute: typeof ChatbotRoute
   MenuRoute: typeof MenuRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiChatbotRoute: typeof ApiChatbotRoute
   ApiConversationChatRoute: typeof ApiConversationChatRoute
   ConversationIdRoute: typeof ConversationIdRoute
   ConversationIndexRoute: typeof ConversationIndexRoute
@@ -141,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/menu'
       fullPath: '/menu'
       preLoaderRoute: typeof MenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chatbot': {
+      id: '/chatbot'
+      path: '/chatbot'
+      fullPath: '/chatbot'
+      preLoaderRoute: typeof ChatbotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/capture-overlay': {
@@ -185,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiConversationChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chatbot': {
+      id: '/api/chatbot'
+      path: '/api/chatbot'
+      fullPath: '/api/chatbot'
+      preLoaderRoute: typeof ApiChatbotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -199,8 +239,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   CaptureOverlayRoute: CaptureOverlayRoute,
+  ChatbotRoute: ChatbotRoute,
   MenuRoute: MenuRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiChatbotRoute: ApiChatbotRoute,
   ApiConversationChatRoute: ApiConversationChatRoute,
   ConversationIdRoute: ConversationIdRoute,
   ConversationIndexRoute: ConversationIndexRoute,

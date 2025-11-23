@@ -1,26 +1,30 @@
-import { Fragment } from 'react'
-import { motion } from 'framer-motion'
-import type { UIMessage } from 'ai'
+import { Fragment } from "react";
+import { motion } from "framer-motion";
+import type { UIMessage } from "ai";
 
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
-} from '@/components/ai-elements/reasoning'
+} from "@/components/ai-elements/reasoning";
 import {
   Source,
   Sources,
   SourcesContent,
   SourcesTrigger,
-} from '@/components/ai-elements/sources'
-import { CopyIcon, RefreshCcwIcon } from 'lucide-react'
-import { Message, MessageContent, MessageResponse } from '@/components/ai-elements/message'
+} from "@/components/ai-elements/sources";
+import { CopyIcon, RefreshCcwIcon } from "lucide-react";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
 
 interface AssistantMessageProps {
-  message: UIMessage
-  status: 'streaming' | 'submitted' | 'awaiting' | 'in_progress'
-  isLastMessage: boolean
-  onRegenerate: () => void
+  message: UIMessage;
+  status: "streaming" | "submitted" | "awaiting" | "in_progress";
+  isLastMessage: boolean;
+  onRegenerate: () => void;
 }
 
 export function AssistantMessage({
@@ -29,7 +33,7 @@ export function AssistantMessage({
   isLastMessage,
   onRegenerate,
 }: AssistantMessageProps) {
-  const sources = message.parts.filter((part) => part.type === 'source-url')
+  const sources = message.parts.filter((part) => part.type === "source-url");
 
   return (
     <motion.div
@@ -57,7 +61,7 @@ export function AssistantMessage({
         {/* Render message parts (text, reasoning, etc.) */}
         {message.parts.map((part, i) => {
           switch (part.type) {
-            case 'text':
+            case "text":
               return (
                 <Fragment key={i}>
                   <Message from="assistant" className="max-w-[80%]">
@@ -87,29 +91,49 @@ export function AssistantMessage({
                     </Actions>
                   )}*/}
                 </Fragment>
-              )
+              );
 
-            case 'reasoning':
+            case "image":
+              const imageData = (part as any).image || (part as any).data || "";
+              const imageUrl = imageData.startsWith("data:")
+                ? imageData
+                : `data:image/png;base64,${imageData}`;
+
+              return (
+                <Message key={i} from="assistant" className="max-w-[80%]">
+                  <MessageContent>
+                    <div className="rounded-lg overflow-hidden border border-border/30">
+                      <img
+                        src={imageUrl}
+                        alt="Attachment"
+                        className="max-w-full h-auto max-h-64 object-contain"
+                      />
+                    </div>
+                  </MessageContent>
+                </Message>
+              );
+
+            case "reasoning":
               return (
                 <Reasoning
                   key={i}
                   className="w-full"
-                  isStreaming={status === 'streaming' && isLastMessage}
+                  isStreaming={status === "streaming" && isLastMessage}
                 >
                   <ReasoningTrigger />
                   <ReasoningContent>{part.text}</ReasoningContent>
                 </Reasoning>
-              )
+              );
 
-            case 'source-url':
+            case "source-url":
               // Handled by the <Sources> block above
-              return null
+              return null;
 
             default:
-              return null
+              return null;
           }
         })}
       </div>
     </motion.div>
-  )
+  );
 }
