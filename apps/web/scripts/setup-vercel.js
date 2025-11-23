@@ -1,11 +1,11 @@
-import { mkdir, copyFile } from 'fs/promises';
+import { mkdir, copyFile, cp, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 const distDir = join(process.cwd(), 'dist');
 const apiDir = join(distDir, 'api');
-const serverFile = join(distDir, 'server', 'server.js');
-const apiServerFile = join(apiDir, 'server.js');
+const serverDir = join(distDir, 'server');
+const serverFile = join(serverDir, 'server.js');
 
 async function setupVercel() {
   try {
@@ -14,14 +14,24 @@ async function setupVercel() {
       await mkdir(apiDir, { recursive: true });
     }
 
-    // Copy server.js to api directory so Vercel recognizes it as a serverless function
-    if (existsSync(serverFile)) {
-      await copyFile(serverFile, apiServerFile);
-      console.log('✅ Copied server.js to api directory for Vercel');
-    } else {
-      console.error('❌ server.js not found at:', serverFile);
-      process.exit(1);
+    // Copy server assets to api directory so imports work
+    const serverAssetsDir = join(serverDir, 'assets');
+    const apiAssetsDir = join(apiDir, 'assets');
+    if (existsSync(serverAssetsDir)) {
+      await cp(serverAssetsDir, apiAssetsDir, { recursive: true });
+      console.log('✅ Copied server assets to api directory');
     }
+
+    // Create a catch-all route that imports the server function
+    // This makes Vercel recognize it as a serverless function
+    const catchAllRoute = join(apiDir, '[...path].js');
+    const catchAllContent = `// Catch-all route for TanStack Start
+// This file makes Vercel recognize the serverless function
+export { default } from '../server/server.js';
+`;
+
+    await writeFile(catchAllRoute, catchAllContent);
+    console.log('✅ Created catch-all API route for Vercel');
   } catch (error) {
     console.error('❌ Error setting up Vercel structure:', error);
     process.exit(1);

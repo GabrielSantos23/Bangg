@@ -9,7 +9,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/api/server"
+      "destination": "/api/$1"
     }
   ]
 }
