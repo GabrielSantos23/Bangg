@@ -14,9 +14,18 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
 });
 
-const firecrawl = new FirecrawlApp({
-  apiKey: process.env.FIRECRAWL_API_KEY!,
-});
+// Lazy initialization of FirecrawlApp to avoid errors during build/prerender
+let firecrawl: FirecrawlApp | null = null;
+function getFirecrawl(): FirecrawlApp {
+  if (!firecrawl) {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+    if (!apiKey) {
+      throw new Error("FIRECRAWL_API_KEY is not set");
+    }
+    firecrawl = new FirecrawlApp({ apiKey });
+  }
+  return firecrawl;
+}
 
 // -------------------------------
 // TOOL: FIRECRAWL SEARCH
@@ -29,7 +38,11 @@ const webSearchTool = tool({
     console.log("🔍 Firecrawl search:", query);
 
     try {
-      const res = await firecrawl.search(query);
+      if (!process.env.FIRECRAWL_API_KEY) {
+        throw new Error("FIRECRAWL_API_KEY is not configured");
+      }
+      const firecrawlClient = getFirecrawl();
+      const res = await firecrawlClient.search(query);
       const results = res?.data ?? [];
 
       return {

@@ -5,7 +5,12 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": [
+        "GOOGLE_GENERATIVE_AI_API_KEY",
+        "TAVILY_API_KEY",
+        "FIRECRAWL_API_KEY"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
