@@ -201,7 +201,7 @@ export function FloatingChat({
   } = useChat({
     experimental_throttle: 120,
     transport: new DefaultChatTransport({
-      api: "/api/chat",
+      api: "https://bangg.xyz/api/chat",
       prepareSendMessagesRequest: ({ messages }) => {
         const currentUserId = userIdRef.current;
         if (!currentUserId) {
